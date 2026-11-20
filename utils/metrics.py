@@ -43,13 +43,12 @@ def evaluate_reconstruction_metrics(
             recon = model(z_mlp)
         else:
             out = model(x)
-            # Handle models returning tuples like (recon, mu, logvar) or (recon, latent)
+     
             recon = out[0] if isinstance(out, tuple) else out
 
         recon = recon.view_as(x)
         recon = torch.clamp(recon, 0.0, 1.0)
 
-        # Accumulate sum of per-image MSE to compute exact dataset average
         batch_mse = F.mse_loss(recon, x, reduction="none").view(batch_size, -1).mean(dim=1).sum().item()
         total_mse += batch_mse
         total_samples += batch_size
@@ -84,11 +83,11 @@ def compute_fid_score(
     fid = FrechetInceptionDistance(feature=2048, normalize=False).to(device)
 
     def to_uint8_rgb(imgs: torch.Tensor) -> torch.Tensor:
-        # imgs expected in [0, 1], shape (B, 1, 28, 28)
+
         imgs_3ch = imgs.repeat(1, 3, 1, 1)
         return (imgs_3ch * 255.0).clamp(0, 255).to(torch.uint8)
 
-    # 1. Feed real test images (assumed in [0, 1] from standard test_loader)
+
     real_count = 0
     for x, _ in real_loader:
         x = x.to(device)
@@ -97,7 +96,7 @@ def compute_fid_score(
         if real_count >= num_samples:
             break
 
-    # 2. Feed generated fake images
+
     fake_count = 0
     while fake_count < num_samples:
         curr_batch = min(batch_size, num_samples - fake_count)
@@ -120,7 +119,7 @@ def measure_inference_latency(
     """
     Measures average inference latency in milliseconds for a single batch of 64 images.
     """
-    # Warmup GPU caches/kernels
+
     for _ in range(warmup_runs):
         _ = inference_fn(batch_size, device)
 
@@ -141,14 +140,14 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Testing metrics on device: {device}")
 
-    # 1. Dummy loader with 128 grayscale images in [0, 1]
+
     dummy_imgs = torch.rand(128, 1, 28, 28)
     dummy_labels = torch.zeros(128, dtype=torch.long)
     dummy_loader = torch.utils.data.DataLoader(
         torch.utils.data.TensorDataset(dummy_imgs, dummy_labels), batch_size=64
     )
 
-    # 2. Dummy identity model
+
     class DummyAE(torch.nn.Module):
         def forward(self, x):
             return torch.clamp(x + 0.05 * torch.randn_like(x), 0.0, 1.0)
@@ -156,7 +155,7 @@ if __name__ == "__main__":
     recon_res = evaluate_reconstruction_metrics(DummyAE().to(device), dummy_loader, device)
     print("Reconstruction test:", recon_res)
 
-    # 3. Dummy sampler for FID & Latency
+
     def dummy_sampler(n, dev):
         return torch.rand(n, 1, 28, 28, device=dev)
 
